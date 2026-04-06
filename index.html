@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Command Centre</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Syne:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #0f1215;
+    --bg3: #141820;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.12);
+    --text: #e8eaed;
+    --text2: #8b9099;
+    --text3: #555c66;
+    --green: #1D9E75;
+    --green2: #9FE1CB;
+    --red: #D85A30;
+    --red2: #F0997B;
+    --amber: #BA7517;
+    --amber2: #FAC775;
+    --blue: #378ADD;
+    --blue2: #85B7EB;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-sans: 'Syne', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-sans); min-height: 100vh; }
+
+  /* Layout */
+  .sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: var(--bg2); border-right: 1px solid var(--border); padding: 1.5rem 1rem; display: flex; flex-direction: column; z-index: 100; }
+  .main { margin-left: 220px; padding: 1.5rem; min-height: 100vh; }
+  .logo { font-size: 18px; font-weight: 800; color: var(--text); margin-bottom: 0.25rem; }
+  .logo span { color: var(--green); }
+  .logo-sub { font-size: 10px; color: var(--text3); font-family: var(--font-mono); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 2rem; }
+
+  /* Nav */
+  .nav-section { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; margin: 1.25rem 0 0.5rem; padding-left: 0.75rem; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 13px; color: var(--text2); cursor: pointer; transition: all 0.15s; margin-bottom: 2px; }
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: rgba(29,158,117,0.15); color: var(--green); }
+  .nav-icon { width: 16px; height: 16px; opacity: 0.7; }
+
+  /* Status dots */
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .dot-green { background: var(--green); box-shadow: 0 0 6px var(--green); animation: pulse 2s infinite; }
+  .dot-red { background: var(--red); }
+  .dot-amber { background: var(--amber); }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+
+  /* Bot mini status in sidebar */
+  .bot-mini { background: var(--bg3); border-radius: 8px; padding: 0.6rem 0.75rem; margin-bottom: 6px; }
+  .bot-mini-name { font-size: 11px; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .bot-mini-detail { font-size: 10px; color: var(--text3); font-family: var(--font-mono); margin-top: 3px; }
+
+  /* Balance display in sidebar */
+  .sidebar-balance { margin-top: auto; padding-top: 1rem; border-top: 1px solid var(--border); }
+  .sidebar-balance-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+  .sidebar-balance-value { font-size: 22px; font-weight: 700; font-family: var(--font-mono); color: var(--text); }
+  .sidebar-balance-eur { font-size: 11px; color: var(--text3); font-family: var(--font-mono); margin-top: 2px; }
+
+  /* Header */
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+  .page-title { font-size: 20px; font-weight: 700; }
+  .page-title span { color: var(--green); }
+  .live-badge { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text3); font-family: var(--font-mono); }
+
+  /* Cards */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .card-title { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px; }
+
+  /* Metric cards */
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .metric-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+  .metric-label { font-size: 10px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+  .metric-value { font-size: 26px; font-weight: 700; font-family: var(--font-mono); }
+  .metric-sub { font-size: 11px; color: var(--text3); margin-top: 6px; font-family: var(--font-mono); }
+
+  /* Grid layouts */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 1.5rem; }
+
+  /* Badges */
+  .badge { font-size: 10px; font-family: var(--font-mono); padding: 2px 7px; border-radius: 5px; font-weight: 500; }
+  .badge-green { background: rgba(29,158,117,0.15); color: var(--green2); }
+  .badge-red { background: rgba(216,90,48,0.15); color: var(--red2); }
+  .badge-amber { background: rgba(186,117,23,0.15); color: var(--amber2); }
+  .badge-blue { background: rgba(55,138,221,0.15); color: var(--blue2); }
+
+  /* Table rows */
+  .row { display: flex; align-items: center; justify-content: space-between; padding: 9px 0; border-bottom: 1px solid var(--border); }
+  .row:last-child { border-bottom: none; }
+  .row-name { font-size: 13px; font-weight: 500; font-family: var(--font-mono); }
+  .row-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  /* RSI bar */
+  .rsi-wrap { width: 70px; height: 3px; background: var(--bg3); border-radius: 2px; margin: 0 10px; }
+  .rsi-fill { height: 3px; border-radius: 2px; }
+
+  /* Score dots */
+  .score-dots { display: flex; gap: 3px; }
+  .sdot { width: 9px; height: 9px; border-radius: 50%; }
+  .sdot-on-g { background: var(--green); }
+  .sdot-on-r { background: var(--red); }
+  .sdot-off { background: var(--bg3); border: 1px solid var(--border2); }
+
+  /* Direction */
+  .dir { font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 5px; font-family: var(--font-mono); min-width: 44px; text-align: center; }
+  .dir-long { background: rgba(29,158,117,0.15); color: var(--green2); }
+  .dir-short { background: rgba(216,90,48,0.15); color: var(--red2); }
+
+  /* Colors */
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .amber { color: var(--amber); }
+  .blue { color: var(--blue); }
+  .muted { color: var(--text3); }
+
+  /* Heatmap */
+  .heatmap { display: grid; grid-template-columns: repeat(6, 1fr); gap: 5px; }
+  .hcell { padding: 8px 4px; border-radius: 7px; text-align: center; cursor: default; transition: transform 0.1s; }
+  .hcell:hover { transform: scale(1.05); }
+  .hcell-name { font-size: 10px; font-weight: 600; font-family: var(--font-mono); }
+  .hcell-val { font-size: 11px; margin-top: 2px; font-weight: 500; }
+
+  /* Fear greed gauge */
+  .fg-container { text-align: center; padding: 0.5rem 0; }
+  .fg-value { font-size: 40px; font-weight: 800; font-family: var(--font-mono); margin: 8px 0 4px; }
+  .fg-label { font-size: 13px; color: var(--text2); }
+  .fg-history { display: flex; gap: 4px; margin-top: 12px; justify-content: center; }
+  .fg-bar { flex: 1; height: 32px; border-radius: 4px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px; font-size: 9px; font-family: var(--font-mono); }
+
+  /* Telegram controls */
+  .tg-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .tg-btn { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; text-align: center; cursor: pointer; transition: all 0.15s; font-family: var(--font-sans); }
+  .tg-btn:hover { border-color: var(--border2); background: rgba(255,255,255,0.05); }
+  .tg-btn:active { transform: scale(0.97); }
+  .tg-btn-icon { font-size: 18px; margin-bottom: 6px; }
+  .tg-btn-label { font-size: 12px; font-weight: 500; color: var(--text); }
+  .tg-btn-desc { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .tg-btn.danger { border-color: rgba(216,90,48,0.3); }
+  .tg-btn.danger:hover { border-color: var(--red); background: rgba(216,90,48,0.1); }
+  .tg-btn.success { border-color: rgba(29,158,117,0.3); }
+  .tg-btn.success:hover { border-color: var(--green); background: rgba(29,158,117,0.1); }
+
+  /* Log terminal */
+  .terminal { background: #060809; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: var(--font-mono); font-size: 11px; max-height: 220px; overflow-y: auto; }
+  .terminal::-webkit-scrollbar { width: 4px; }
+  .terminal::-webkit-scrollbar-track { background: transparent; }
+  .terminal::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+  .log-line { color: var(--text3); line-height: 1.6; }
+  .log-line.info { color: #5DCAA5; }
+  .log-line.error { color: var(--red2); }
+  .log-line.trade { color: var(--amber2); font-weight: 500; }
+
+  /* Position card */
+  .pos-card { background: var(--bg3); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 8px; border-left: 3px solid transparent; }
+  .pos-card.long { border-left-color: var(--green); }
+  .pos-card.short { border-left-color: var(--red); }
+  .pos-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .pos-pnl { font-size: 18px; font-weight: 700; font-family: var(--font-mono); }
+  .pos-details { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .pos-detail-item { font-size: 10px; color: var(--text3); }
+  .pos-detail-val { font-size: 12px; font-family: var(--font-mono); color: var(--text2); margin-top: 2px; }
+
+  /* Notification toast */
+  .toast { position: fixed; bottom: 1.5rem; right: 1.5rem; background: var(--bg2); border: 1px solid var(--green); border-radius: 10px; padding: 0.75rem 1.25rem; font-size: 13px; color: var(--green2); z-index: 999; display: none; font-family: var(--font-mono); max-width: 300px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 1rem; }
+  .tab { padding: 5px 14px; border-radius: 7px; font-size: 12px; cursor: pointer; color: var(--text3); font-weight: 500; transition: all 0.15s; }
+  .tab.active { background: rgba(29,158,117,0.15); color: var(--green2); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* Input */
+  input, select { background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--font-mono); font-size: 12px; padding: 6px 10px; border-radius: 7px; outline: none; }
+  input:focus, select:focus { border-color: var(--border2); }
+  .btn { background: var(--bg3); border: 1px solid var(--border); color: var(--text); font-family: var(--font-sans); font-size: 12px; padding: 6px 14px; border-radius: 7px; cursor: pointer; font-weight: 500; transition: all 0.15s; }
+  .btn:hover { border-color: var(--border2); }
+  .btn-green { background: rgba(29,158,117,0.15); border-color: var(--green); color: var(--green2); }
+  .btn-red { background: rgba(216,90,48,0.15); border-color: var(--red); color: var(--red2); }
+
+  /* Loading overlay */
+  .loading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 2rem; color: var(--text3); font-size: 13px; font-family: var(--font-mono); }
+
+  /* Section */
+  .section { display: none; }
+  .section.active { display: block; }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .sidebar { width: 60px; padding: 1rem 0.5rem; }
+    .sidebar .logo-text, .nav-item span, .bot-mini-detail, .sidebar-balance { display: none; }
+    .main { margin-left: 60px; }
+    .metric-grid { grid-template-columns: repeat(2,1fr); }
+    .grid-3 { grid-template-columns: 1fr; }
+  }
+
+  .spinner { width: 12px; height: 12px; border: 2px solid var(--border2); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <div>
+    <div class="logo">Trader<span>OS</span></div>
+    <div class="logo-sub logo-text">Command Centre</div>
+
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="showSection('dashboard')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      <span>Dashboard</span>
+    </div>
+    <div class="nav-item" onclick="showSection('scanner')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <span>Scanner</span>
+    </div>
+    <div class="nav-item" onclick="showSection('signals')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      <span>Signals</span>
+    </div>
+
+    <div class="nav-section">Bots</div>
+    <div class="nav-item" onclick="showSection('positions')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      <span>Positions</span>
+    </div>
+    <div class="nav-item" onclick="showSection('control')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      <span>Control</span>
+    </div>
+    <div class="nav-item" onclick="showSection('logs')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      <span>Logs</span>
+    </div>
+
+    <div class="nav-section">Market</div>
+    <div class="nav-item" onclick="showSection('market')">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+      <span>Market</span>
+    </div>
+  </div>
+
+  <div class="sidebar-balance">
+    <div class="sidebar-balance-label">Balance</div>
+    <div class="sidebar-balance-value" id="sb-balance">—</div>
+    <div class="sidebar-balance-eur" id="sb-eur">— EUR</div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- DASHBOARD SECTION -->
+  <div class="section active" id="section-dashboard">
+    <div class="page-header">
+      <div class="page-title">Trading <span>Dashboard</span></div>
+      <div class="live-badge">
+        <span class="dot dot-green"></span>
+        <span id="last-update">Loading...</span>
+      </div>
+    </div>
+
+    <div class="metric-grid">
+      <div class="metric-card">
+        <div class="metric-label">Balance</div>
+        <div class="metric-value" id="m-balance">—</div>
+        <div class="metric-sub" id="m-balance-eur">— EUR</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Open PnL</div>
+        <div class="metric-value" id="m-pnl">—</div>
+        <div class="metric-sub muted" id="m-positions-count">— positions</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Combined PnL</div>
+        <div class="metric-value" id="m-total-pnl">—</div>
+        <div class="metric-sub muted">all time</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Win Rate</div>
+        <div class="metric-value" id="m-winrate">—</div>
+        <div class="metric-sub muted" id="m-trades-count">— total trades</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Bot Status</div>
+        <div class="bot-mini" id="bot1-status-card">
+          <div class="bot-mini-name"><span class="dot dot-amber" id="b1-dot"></span> Bot 1 — Quality (15m)</div>
+          <div class="bot-mini-detail" id="b1-detail">Loading...</div>
+        </div>
+        <div class="bot-mini" id="bot2-status-card">
+          <div class="bot-mini-name"><span class="dot dot-amber" id="b2-dot"></span> Bot 2 — Frequency (5m)</div>
+          <div class="bot-mini-detail" id="b2-detail">Loading...</div>
+        </div>
+        <div style="margin-top:12px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:6px">
+            <span class="muted">Bot 1 win rate</span>
+            <span id="b1-wr" style="font-family:var(--font-mono)">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px">
+            <span class="muted">Bot 2 win rate</span>
+            <span id="b2-wr" style="font-family:var(--font-mono)">—</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Fear & Greed Index</div>
+        <div class="fg-container">
+          <svg viewBox="0 0 200 110" width="180" style="display:block;margin:0 auto">
+            <path d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="#1a1f26" stroke-width="16" stroke-linecap="round"/>
+            <path id="fg-arc" d="M20,100 A80,80 0 0,1 180,100" fill="none" stroke="#1D9E75" stroke-width="16" stroke-linecap="round" stroke-dasharray="251" stroke-dashoffset="200"/>
+            <circle id="fg-needle" cx="100" cy="100" r="5" fill="#1D9E75"/>
+            <text id="fg-num" x="100" y="90" text-anchor="middle" font-family="JetBrains Mono" font-size="26" font-weight="700" fill="#e8eaed">—</text>
+            <text id="fg-lbl" x="100" y="108" text-anchor="middle" font-family="Syne" font-size="11" fill="#8b9099">Loading</text>
+            <text x="22" y="115" font-family="Syne" font-size="9" fill="#555c66">Fear</text>
+            <text x="165" y="115" font-family="Syne" font-size="9" fill="#555c66">Greed</text>
+          </svg>
+          <div style="font-size:11px;color:var(--text3);margin-top:4px" id="fg-advice">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:1.5rem">
+      <div class="card-title">Open Positions</div>
+      <div id="positions-list"><div class="loading"><span class="spinner"></span> Loading positions...</div></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Market Heatmap <span class="badge badge-blue">24h change</span></div>
+      <div class="heatmap" id="heatmap-grid"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+    </div>
+  </div>
+
+  <!-- SCANNER SECTION -->
+  <div class="section" id="section-scanner">
+    <div class="page-header">
+      <div class="page-title">RSI <span>Scanner</span></div>
+      <button class="btn btn-green" onclick="loadScanner()"><span class="spinner" id="scan-spin" style="display:none"></span> Scan Now</button>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Oversold <span class="badge badge-red">RSI below 25</span></div>
+        <div id="oversold-list"><div class="loading"><span class="spinner"></span> Scanning...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Overbought <span class="badge badge-green">RSI above 75</span></div>
+        <div id="overbought-list"><div class="loading"><span class="spinner"></span> Scanning...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNALS SECTION -->
+  <div class="section" id="section-signals">
+    <div class="page-header">
+      <div class="page-title">Signal <span>Scanner</span></div>
+      <button class="btn btn-green" onclick="loadSignals()">Scan Now</button>
+    </div>
+    <div class="card">
+      <div class="card-title">Live Signals <span class="badge badge-blue">Smart Momentum Strategy</span></div>
+      <div id="signals-list"><div class="loading"><span class="spinner"></span> Calculating signals across all coins...</div></div>
+    </div>
+  </div>
+
+  <!-- POSITIONS SECTION -->
+  <div class="section" id="section-positions">
+    <div class="page-header">
+      <div class="page-title">Open <span>Positions</span></div>
+      <button class="btn" onclick="loadOverview()">Refresh</button>
+    </div>
+    <div id="positions-detail"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+  </div>
+
+  <!-- CONTROL SECTION -->
+  <div class="section" id="section-control">
+    <div class="page-header">
+      <div class="page-title">Bot <span>Control</span></div>
+      <div class="live-badge"><span class="dot dot-green"></span> Telegram connected</div>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:1.5rem">
+      <div class="card">
+        <div class="card-title">Bot 1 — Quality (15m)</div>
+        <div class="tg-grid">
+          <div class="tg-btn success" onclick="sendCmd('start1')">
+            <div class="tg-btn-icon">▶</div>
+            <div class="tg-btn-label">Start</div>
+            <div class="tg-btn-desc">Begin trading</div>
+          </div>
+          <div class="tg-btn danger" onclick="sendCmd('stop1')">
+            <div class="tg-btn-icon">⏹</div>
+            <div class="tg-btn-label">Stop</div>
+            <div class="tg-btn-desc">Halt trading</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('restart1')">
+            <div class="tg-btn-icon">↺</div>
+            <div class="tg-btn-label">Restart</div>
+            <div class="tg-btn-desc">Apply settings</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('pause1')">
+            <div class="tg-btn-icon">⏸</div>
+            <div class="tg-btn-label">Pause</div>
+            <div class="tg-btn-desc">Hold new trades</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('status1')">
+            <div class="tg-btn-icon">ℹ</div>
+            <div class="tg-btn-label">Status</div>
+            <div class="tg-btn-desc">View on Telegram</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('daily1')">
+            <div class="tg-btn-icon">📊</div>
+            <div class="tg-btn-label">Daily</div>
+            <div class="tg-btn-desc">Today's report</div>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Quick settings (sends to Telegram)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Timeframe</div>
+              <select id="tf1-select" style="width:100%">
+                <option value="5m">5m</option>
+                <option value="15m" selected>15m</option>
+                <option value="30m">30m</option>
+                <option value="1h">1h</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Trade size (USDT)</div>
+              <input type="number" id="qty1-input" value="500" style="width:100%">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" style="flex:1" onclick="applySettings(1)">Apply Bot 1 Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Bot 2 — Frequency (5m)</div>
+        <div class="tg-grid">
+          <div class="tg-btn success" onclick="sendCmd('start2')">
+            <div class="tg-btn-icon">▶</div>
+            <div class="tg-btn-label">Start</div>
+            <div class="tg-btn-desc">Begin trading</div>
+          </div>
+          <div class="tg-btn danger" onclick="sendCmd('stop2')">
+            <div class="tg-btn-icon">⏹</div>
+            <div class="tg-btn-label">Stop</div>
+            <div class="tg-btn-desc">Halt trading</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('restart2')">
+            <div class="tg-btn-icon">↺</div>
+            <div class="tg-btn-label">Restart</div>
+            <div class="tg-btn-desc">Apply settings</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('pause2')">
+            <div class="tg-btn-icon">⏸</div>
+            <div class="tg-btn-label">Pause</div>
+            <div class="tg-btn-desc">Hold new trades</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('status2')">
+            <div class="tg-btn-icon">ℹ</div>
+            <div class="tg-btn-label">Status</div>
+            <div class="tg-btn-desc">View on Telegram</div>
+          </div>
+          <div class="tg-btn" onclick="sendCmd('daily2')">
+            <div class="tg-btn-icon">📊</div>
+            <div class="tg-btn-label">Daily</div>
+            <div class="tg-btn-desc">Today's report</div>
+          </div>
+        </div>
+
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Quick settings (sends to Telegram)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Timeframe</div>
+              <select id="tf2-select" style="width:100%">
+                <option value="1m">1m</option>
+                <option value="3m">3m</option>
+                <option value="5m" selected>5m</option>
+                <option value="15m">15m</option>
+              </select>
+            </div>
+            <div>
+              <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Trade size (USDT)</div>
+              <input type="number" id="qty2-input" value="500" style="width:100%">
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:8px">
+            <button class="btn" style="flex:1" onclick="applySettings(2)">Apply Bot 2 Settings</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Emergency Controls</div>
+      <div class="tg-grid">
+        <div class="tg-btn danger" onclick="sendCmd('emergency')" style="grid-column:span 2">
+          <div class="tg-btn-icon">🚨</div>
+          <div class="tg-btn-label">Emergency Close All</div>
+          <div class="tg-btn-desc">Close all positions immediately on both bots</div>
+        </div>
+        <div class="tg-btn" onclick="sendCmd('overview')">
+          <div class="tg-btn-icon">👁</div>
+          <div class="tg-btn-label">Overview</div>
+          <div class="tg-btn-desc">Both bots summary</div>
+        </div>
+        <div class="tg-btn" onclick="sendCmd('positions')">
+          <div class="tg-btn-icon">💼</div>
+          <div class="tg-btn-label">Positions</div>
+          <div class="tg-btn-desc">All open trades</div>
+        </div>
+        <div class="tg-btn" onclick="sendCmd('balance')">
+          <div class="tg-btn-icon">💰</div>
+          <div class="tg-btn-label">Balance</div>
+          <div class="tg-btn-desc">Current USDT</div>
+        </div>
+        <div class="tg-btn" onclick="sendCmd('sentiment')">
+          <div class="tg-btn-icon">📈</div>
+          <div class="tg-btn-label">Sentiment</div>
+          <div class="tg-btn-desc">Fear & Greed</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOGS SECTION -->
+  <div class="section" id="section-logs">
+    <div class="page-header">
+      <div class="page-title">Bot <span>Logs</span></div>
+    </div>
+    <div class="tabs">
+      <div class="tab active" onclick="loadLog(1,this)">Bot 1 (15m)</div>
+      <div class="tab" onclick="loadLog(2,this)">Bot 2 (5m)</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Live Log Feed</div>
+      <div class="terminal" id="log-terminal"><div class="loading"><span class="spinner"></span> Loading logs...</div></div>
+    </div>
+  </div>
+
+  <!-- MARKET SECTION -->
+  <div class="section" id="section-market">
+    <div class="page-header">
+      <div class="page-title">Market <span>Overview</span></div>
+      <button class="btn btn-green" onclick="loadMarket()">Refresh</button>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Top Gainers <span class="badge badge-green">24h</span></div>
+        <div id="gainers-list"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Top Losers <span class="badge badge-red">24h</span></div>
+        <div id="losers-list"><div class="loading"><span class="spinner"></span> Loading...</div></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════
+// CONFIGURATION — Update this with your server IP
+// ═══════════════════════════════════════════════
+const API_BASE = "http://157.230.21.113:5000";
+// ═══════════════════════════════════════════════
+
+async function api(endpoint) {
+  try {
+    const r = await fetch(API_BASE + endpoint);
+    return await r.json();
+  } catch(e) {
+    console.error("API error:", endpoint, e);
+    return null;
+  }
+}
+
+function toast(msg, color) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.style.borderColor = color || "var(--green)";
+  el.style.color = color ? (color === "var(--red)" ? "var(--red2)" : "var(--green2)") : "var(--green2)";
+  el.style.display = "block";
+  setTimeout(() => el.style.display = "none", 3000);
+}
+
+async function sendCmd(cmd) {
+  const encoded = cmd.replace("/","");
+  const r = await api(`/api/telegram/${encoded}`);
+  if(r && r.sent) {
+    toast(`Command /${cmd} sent to Telegram`);
+  } else {
+    toast("Failed to send command", "var(--red)");
+  }
+}
+
+function applySettings(botId) {
+  const tf  = document.getElementById(`tf${botId}-select`).value;
+  const qty = document.getElementById(`qty${botId}-input`).value;
+  sendCmd(`timeframe${botId} ${tf}`);
+  setTimeout(() => sendCmd(`forcequantity${botId} ${qty}`), 500);
+  setTimeout(() => sendCmd(`restart${botId}`), 1000);
+  toast(`Settings applied to Bot ${botId} — restarting...`);
+}
+
+function showSection(name) {
+  document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  document.getElementById("section-" + name).classList.add("active");
+  event.currentTarget.classList.add("active");
+
+  if(name === "scanner")   loadScanner();
+  if(name === "signals")   loadSignals();
+  if(name === "logs")      loadLog(1, document.querySelector(".tab.active"));
+  if(name === "market")    loadMarket();
+  if(name === "positions") renderPositionDetail();
+}
+
+// ── OVERVIEW DATA ────────────────────────────────────────────
+async function loadOverview() {
+  const data = await api("/api/overview");
+  if(!data) return;
+
+  const now = new Date();
+  document.getElementById("last-update").textContent = `Updated ${now.toLocaleTimeString()}`;
+
+  document.getElementById("sb-balance").textContent  = data.balance.toFixed(2) + " USDT";
+  document.getElementById("sb-eur").textContent      = "≈ " + data.balance_eur.toFixed(2) + " EUR";
+  document.getElementById("m-balance").textContent   = data.balance.toFixed(2);
+  document.getElementById("m-balance-eur").textContent = "≈ " + data.balance_eur.toFixed(2) + " EUR";
+
+  const pnl = data.open_pnl;
+  document.getElementById("m-pnl").textContent       = (pnl >= 0 ? "+" : "") + pnl.toFixed(2);
+  document.getElementById("m-pnl").className         = "metric-value " + (pnl >= 0 ? "green" : "red");
+  document.getElementById("m-positions-count").textContent = data.positions.length + " positions open";
+
+  const cpnl = data.combined_pnl;
+  document.getElementById("m-total-pnl").textContent = (cpnl >= 0 ? "+" : "") + cpnl.toFixed(2) + " USDT";
+  document.getElementById("m-total-pnl").className   = "metric-value " + (cpnl >= 0 ? "green" : "red");
+
+  const totalTrades = (data.bot1.stats.total_trades||0) + (data.bot2.stats.total_trades||0);
+  const totalWins   = (data.bot1.stats.wins||0) + (data.bot2.stats.wins||0);
+  const wr          = totalTrades > 0 ? Math.round(totalWins/totalTrades*100) : 0;
+  document.getElementById("m-winrate").textContent   = wr + "%";
+  document.getElementById("m-trades-count").textContent = totalTrades + " total trades";
+
+  // Bot status
+  const b1run = data.bot1.running;
+  const b2run = data.bot2.running;
+  document.getElementById("b1-dot").className = "dot " + (b1run ? "dot-green" : "dot-red");
+  document.getElementById("b2-dot").className = "dot " + (b2run ? "dot-green" : "dot-red");
+  document.getElementById("b1-detail").textContent =
+    (b1run ? "Running" : "Stopped") + " · " +
+    (data.bot1.stats.total_trades||0) + " trades · " +
+    (data.bot1.stats.wins||0) + "W / " + (data.bot1.stats.losses||0) + "L";
+  document.getElementById("b2-detail").textContent =
+    (b2run ? "Running" : "Stopped") + " · " +
+    (data.bot2.stats.total_trades||0) + " trades · " +
+    (data.bot2.stats.wins||0) + "W / " + (data.bot2.stats.losses||0) + "L";
+  document.getElementById("b1-wr").textContent = data.bot1.win_rate + "%";
+  document.getElementById("b2-wr").textContent = data.bot2.win_rate + "%";
+
+  // Sidebar
+  document.getElementById("sb-balance").textContent = data.balance.toFixed(2) + " USDT";
+
+  renderPositions(data.positions, "positions-list");
+  window._positions = data.positions;
+}
+
+function renderPositions(positions, targetId) {
+  const el = document.getElementById(targetId);
+  if(!positions || positions.length === 0) {
+    el.innerHTML = "<div class='loading muted'>No open positions</div>";
+    return;
+  }
+  el.innerHTML = positions.map(p => {
+    const pnlColor = p.pnl >= 0 ? "var(--green)" : "var(--red)";
+    const pnlStr = (p.pnl >= 0 ? "+" : "") + p.pnl.toFixed(2) + " USDT";
+    const roi = ((p.pnl / 50) * 100).toFixed(2);
+    return `
+      <div class="pos-card ${p.direction.toLowerCase()}">
+        <div class="pos-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="dir dir-${p.direction.toLowerCase()}">${p.direction}</span>
+            <span class="row-name">${p.symbol}</span>
+            <span class="badge badge-blue">${p.leverage}x</span>
+          </div>
+          <div class="pos-pnl" style="color:${pnlColor}">${pnlStr}</div>
+        </div>
+        <div class="pos-details">
+          <div class="pos-detail-item">Entry<div class="pos-detail-val">${p.entry.toFixed(4)}</div></div>
+          <div class="pos-detail-item">Mark<div class="pos-detail-val">${p.mark.toFixed(4)}</div></div>
+          <div class="pos-detail-item">ROI<div class="pos-detail-val" style="color:${pnlColor}">${roi}%</div></div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function renderPositionDetail() {
+  renderPositions(window._positions || [], "positions-detail");
+}
+
+// ── FEAR & GREED ─────────────────────────────────────────────
+async function loadFearGreed() {
+  const data = await api("/api/feargreed");
+  if(!data) return;
+
+  const v = data.value;
+  document.getElementById("fg-num").textContent = v;
+  document.getElementById("fg-lbl").textContent = data.label;
+
+  const color = v < 25 ? "#D85A30" : v < 45 ? "#BA7517" : v < 55 ? "#888780" : v < 75 ? "#639922" : "#1D9E75";
+  document.getElementById("fg-arc").setAttribute("stroke", color);
+  document.getElementById("fg-needle").setAttribute("fill", color);
+
+  const offset = 251 - (v / 100) * 251;
+  document.getElementById("fg-arc").setAttribute("stroke-dashoffset", offset);
+
+  const needle_angle = -90 + (v/100)*180;
+  const rad = needle_angle * Math.PI / 180;
+  const nx = 100 + 75 * Math.cos(rad);
+  const ny = 100 + 75 * Math.sin(rad);
+  document.getElementById("fg-needle").setAttribute("cx", nx.toFixed(1));
+  document.getElementById("fg-needle").setAttribute("cy", ny.toFixed(1));
+
+  const advice = v < 25 ? "Extreme Fear — potential BUY zone" :
+                 v < 45 ? "Fear — be cautious with longs" :
+                 v < 55 ? "Neutral — normal conditions" :
+                 v < 75 ? "Greed — be cautious with shorts" :
+                 "Extreme Greed — reversal risk";
+  document.getElementById("fg-advice").textContent = advice;
+  document.getElementById("fg-advice").style.color = color;
+}
+
+// ── HEATMAP ──────────────────────────────────────────────────
+async function loadHeatmap() {
+  const data = await api("/api/movers");
+  if(!data) return;
+
+  const allCoins = [...(data.gainers||[]), ...(data.losers||[])].slice(0,12);
+  const el = document.getElementById("heatmap-grid");
+  el.innerHTML = allCoins.map(t => {
+    const chg = t.change;
+    const pos = chg >= 0;
+    const intensity = Math.min(Math.abs(chg) / 15, 1);
+    const bg = pos
+      ? `rgba(29,158,117,${0.1 + intensity * 0.5})`
+      : `rgba(216,90,48,${0.1 + intensity * 0.5})`;
+    const textColor = pos ? "#9FE1CB" : "#F0997B";
+    const name = t.symbol.replace("USDT","");
+    return `
+      <div class="hcell" style="background:${bg}">
+        <div class="hcell-name" style="color:${textColor}">${name}</div>
+        <div class="hcell-val" style="color:${textColor}">${chg >= 0 ? "+" : ""}${chg.toFixed(1)}%</div>
+      </div>`;
+  }).join("");
+}
+
+// ── SCANNER ──────────────────────────────────────────────────
+async function loadScanner() {
+  const spin = document.getElementById("scan-spin");
+  if(spin) spin.style.display = "inline-block";
+  const data = await api("/api/scanner");
+  if(spin) spin.style.display = "none";
+  if(!data) return;
+
+  const renderList = (items, targetId, type) => {
+    const el = document.getElementById(targetId);
+    if(!items || items.length === 0) {
+      el.innerHTML = "<div class='loading muted'>No coins found in this range</div>";
+      return;
+    }
+    el.innerHTML = items.map(c => {
+      const rsiPct = c.rsi;
+      const barColor = type === "oversold" ? "var(--red)" : "var(--green)";
+      return `
+        <div class="row">
+          <div>
+            <div class="row-name">${c.symbol}</div>
+            <div class="row-sub">Vol: ${c.vol_ratio}x avg</div>
+          </div>
+          <div style="display:flex;align-items:center">
+            <div class="rsi-wrap"><div class="rsi-fill" style="width:${rsiPct}%;background:${barColor}"></div></div>
+            <span class="badge ${type === 'oversold' ? 'badge-red' : 'badge-green'}">${c.rsi}</span>
+          </div>
+        </div>`;
+    }).join("");
+  };
+
+  renderList(data.oversold,   "oversold-list",   "oversold");
+  renderList(data.overbought, "overbought-list",  "overbought");
+}
+
+// ── SIGNALS ──────────────────────────────────────────────────
+async function loadSignals() {
+  const data = await api("/api/signals");
+  const el = document.getElementById("signals-list");
+  if(!data || !data.signals) {
+    el.innerHTML = "<div class='loading muted'>No signals found</div>";
+    return;
+  }
+  const signals = data.signals;
+  if(signals.length === 0) {
+    el.innerHTML = "<div class='loading muted'>No signals meeting criteria right now</div>";
+    return;
+  }
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+      ${signals.map(s => {
+        const dotsFilled = s.score;
+        const dotsTotal  = 5;
+        const dots = Array.from({length:dotsTotal}, (_,i) =>
+          `<div class="sdot ${i < dotsFilled ? (s.direction==='LONG'?'sdot-on-g':'sdot-on-r') : 'sdot-off'}"></div>`
+        ).join("");
+        return `
+          <div style="background:var(--bg3);border-radius:10px;padding:0.75rem;border:1px solid var(--border)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <span class="dir dir-${s.direction.toLowerCase()}">${s.direction}</span>
+              <span class="badge badge-blue">${s.score}/5</span>
+            </div>
+            <div class="row-name" style="font-size:12px;margin-bottom:4px">${s.symbol}</div>
+            <div class="row-sub">RSI: ${s.rsi} · Core: ${s.core}/3</div>
+            <div class="score-dots" style="margin-top:8px">${dots}</div>
+          </div>`;
+      }).join("")}
+    </div>`;
+}
+
+// ── LOGS ─────────────────────────────────────────────────────
+async function loadLog(botId, tabEl) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+  if(tabEl) tabEl.classList.add("active");
+  const data = await api(`/api/log/${botId}`);
+  const el = document.getElementById("log-terminal");
+  if(!data || !data.lines || data.lines.length === 0) {
+    el.innerHTML = "<div class='log-line'>No logs found yet</div>";
+    return;
+  }
+  el.innerHTML = data.lines.map(line => {
+    let cls = "log-line";
+    if(line.includes("ERROR"))  cls += " error";
+    else if(line.includes("OPENED") || line.includes("CLOSED")) cls += " trade";
+    else if(line.includes("INFO"))  cls += " info";
+    return `<div class="${cls}">${line}</div>`;
+  }).join("");
+  el.scrollTop = el.scrollHeight;
+}
+
+// ── MARKET ───────────────────────────────────────────────────
+async function loadMarket() {
+  const data = await api("/api/movers");
+  if(!data) return;
+
+  const renderMovers = (items, targetId, isGainer) => {
+    const el = document.getElementById(targetId);
+    el.innerHTML = items.map(t => `
+      <div class="row">
+        <div>
+          <div class="row-name">${t.symbol}</div>
+          <div class="row-sub">Vol: $${t.volume}B</div>
+        </div>
+        <span class="${isGainer ? 'green' : 'red'}" style="font-family:var(--font-mono);font-size:14px;font-weight:500">
+          ${t.change >= 0 ? '+' : ''}${t.change.toFixed(2)}%
+        </span>
+      </div>`).join("");
+  };
+
+  renderMovers(data.gainers, "gainers-list", true);
+  renderMovers(data.losers,  "losers-list",  false);
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+async function init() {
+  await Promise.all([
+    loadOverview(),
+    loadFearGreed(),
+    loadHeatmap(),
+    loadMarket()
+  ]);
+}
+
+init();
+setInterval(loadOverview,  30000);
+setInterval(loadFearGreed, 300000);
+setInterval(loadHeatmap,   60000);
+</script>
+</body>
+</html>
